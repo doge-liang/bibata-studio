@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Test artifacts
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Build output (themes/zip go here when running CLI)
+out/
+themes/
+bitmaps/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

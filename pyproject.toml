@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bibata-studio"
+version = "0.1.0"
+description = "Local-first Bibata cursor builder. Pure Python CLI fork that drops the Vercel/Postgres/NextAuth stack and ships the SVG sources in-tree."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "you" }]
+keywords = ["cursor", "bibata", "xcursor", "windows-cursor"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Desktop Environment",
+]
+dependencies = [
+    "clickgen>=2.2.5",
+    "resvg-py>=0.3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.scripts]
+bibata = "bibata_studio.cli:main"
+
+[project.urls]
+"Upstream (cursor SVGs)" = "https://github.com/ful1e5/Bibata_Cursor"
+"Upstream (web app)" = "https://github.com/ful1e5/bibata"
+"Cursor builder" = "https://github.com/ful1e5/clickgen"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"bibata_studio" = ["data/**/*.svg", "data/**/*.toml"]
