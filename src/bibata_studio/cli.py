@@ -166,7 +166,8 @@ def cmd_build(args: argparse.Namespace) -> int:
             if dst.exists():
                 import shutil
                 shutil.rmtree(dst)
-            theme_dir.rename(dst)
+            import shutil as _shutil
+            _shutil.move(str(theme_dir), str(dst))
             final_outputs.append(dst)
 
     if not args.keep_intermediates:
