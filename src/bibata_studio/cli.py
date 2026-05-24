@@ -273,6 +273,27 @@ def cmd_uninstall(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_preview(args: argparse.Namespace) -> int:
+    """Render every cursor + emit an HTML gallery; open it in the browser."""
+    from .preview import generate_preview, open_in_browser
+
+    palette_label, palette = _resolve_palette(args)
+    out_dir = Path(args.output).resolve() / f"preview-{args.variant}-{palette_label.lower()}"
+    _info(
+        f"Rendering preview ({args.variant} / {palette_label}) at {args.size}px "
+        f"into {out_dir} …"
+    )
+    t0 = time.perf_counter()
+    index = generate_preview(args.variant, palette, palette_label, out_dir, render_size=args.size)
+    _info(f"  done in {time.perf_counter() - t0:.1f}s → {index}")
+    if not args.no_open:
+        open_in_browser(index)
+        _info("Opened in default browser. Animated cursors play in-page at 30ms/frame.")
+    else:
+        _info(f"Open manually: {index.as_uri()}")
+    return 0
+
+
 def cmd_list(_args: argparse.Namespace) -> int:
     print("Variants:")
     for v in VARIANTS:
@@ -385,6 +406,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the extracted Bibata-...-Windows directory.",
     )
     u.set_defaults(func=cmd_uninstall)
+
+    # ---- preview --------------------------------------------------------
+    pr = sub.add_parser(
+        "preview",
+        help="Render all cursors + open an HTML gallery in your browser.",
+    )
+    pr.add_argument("-v", "--variant", required=True, choices=sorted(VARIANTS))
+    pr.add_argument(
+        "-c", "--color",
+        required=True,
+        help=f"Palette preset ({', '.join(PALETTES)}) or 'custom'.",
+    )
+    pr.add_argument("--base", help="Hex color for base (with --color custom).")
+    pr.add_argument("--outline", help="Hex color for outline (with --color custom).")
+    pr.add_argument("--watch-bg", dest="watch_bg",
+                    help="Hex color for watch background (with --color custom).")
+    pr.add_argument("-s", "--size", type=int, default=96,
+                    help="Preview render size in px (default: 96).")
+    pr.add_argument("-o", "--output", default="./out",
+                    help="Parent output directory (default: ./out).")
+    pr.add_argument("--no-open", action="store_true",
+                    help="Don't auto-open in browser; just print the file URI.")
+    pr.set_defaults(func=cmd_preview)
 
     return p
 

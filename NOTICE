@@ -1,0 +1,79 @@
+bibata-studio
+=============
+
+This project is an independent reimplementation of the build pipeline for
+Bibata cursor themes. It is NOT a fork of `github.com/ful1e5/bibata` (the
+web application) in the git sense — no commit history is shared, and no
+Python/TypeScript code is reused from that repository.
+
+It DOES vendor artwork and build configuration from
+`github.com/ful1e5/Bibata_Cursor` (a separate, asset-only repository by the
+same author). Both upstream projects are licensed MIT.
+
+
+VENDORED CONTENT
+----------------
+
+The following directories contain files copied verbatim from
+`github.com/ful1e5/Bibata_Cursor` at commit `35ccfe2` (2024-06-18):
+
+    src/bibata_studio/data/svg/groups/      372 SVG files (cursor artwork)
+    src/bibata_studio/data/configs/         8 ctgen TOML build configs
+
+These files are unmodified except for being relocated under the
+`bibata_studio` package data directory so they install with the wheel.
+They retain their upstream MIT license. Original copyright notice:
+
+    MIT License
+    Copyright (c) 2020 Abdulkaiz Khatri
+
+    [full MIT text — see https://github.com/ful1e5/Bibata_Cursor/blob/main/LICENSE]
+
+
+RUNTIME DEPENDENCIES (NOT VENDORED)
+-----------------------------------
+
+`clickgen` (https://github.com/ful1e5/clickgen, MIT, by the same author) is
+imported as a pip package and drives the XCursor / Windows-cursor packing
+stage. We invoke `clickgen.scripts.ctgen.main` in-process. No code from
+clickgen is copied into this repository.
+
+`resvg-py` (https://pypi.org/project/resvg-py/, MIT, unrelated maintainer)
+provides the Rust-backed SVG rasterizer. Imported as a pip package.
+
+`Pillow` is a transitive dependency of `clickgen`.
+
+
+WHAT IS NOT FROM UPSTREAM
+-------------------------
+
+All Python source under `src/bibata_studio/*.py` and all tests under
+`tests/*.py` were written for this project. The architectural decisions
+(CLI surface, in-process clickgen invocation, HTML preview, Windows install
+via `setupapi.dll`) are this project's own. The `ful1e5/bibata` web app
+was consulted only as a reference for the cursor-recoloring protocol — the
+agreement that SVGs use `#00FF00` for "base color", `#0000FF` for
+"outline color", and `#FF0000` for "watch background color" placeholder
+swatches.
+
+
+ATTRIBUTION
+-----------
+
+All cursor artwork, including the visual identity of the Bibata cursor
+family, is the creation of Abdulkaiz Khatri (@ful1e5). The variant naming
+convention (Modern / Original / -Right) and the upstream `link.py`
+file-grouping logic are likewise his work.
+
+If you find this tool useful, please consider sponsoring the original
+artist at https://github.com/sponsors/ful1e5.
+
+
+REPORTING ISSUES
+----------------
+
+- Bugs in this CLI (`bibata-studio`): file at this repository's issues.
+- Bugs in the SVG artwork itself: upstream at `ful1e5/Bibata_Cursor`.
+- Bugs in cursor packing: upstream at `ful1e5/clickgen`.
+- Bugs in the (defunct) web app: upstream at `ful1e5/bibata` — note that
+  repository is unmaintained as of late 2024.

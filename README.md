@@ -1,8 +1,18 @@
 # bibata-studio
 
-A local-first, pure-Python CLI that builds [Bibata](https://github.com/ful1e5/bibata)
+A local-first, pure-Python CLI that builds [Bibata](https://github.com/ful1e5/Bibata_Cursor)
 cursor themes. No web stack, no database, no auth, no Figma token — just
 SVGs in, cursor `.zip` out.
+
+> **Relationship to upstream.** This is an **independent reimplementation**
+> of the Bibata build pipeline, not a fork in the git sense. The cursor SVGs
+> and the [`ctgen`](https://github.com/ful1e5/clickgen) build configs are
+> **vendored verbatim** from [`ful1e5/Bibata_Cursor`](https://github.com/ful1e5/Bibata_Cursor)
+> @ commit `35ccfe2` (2024-06-18). All Python source is new and shares no
+> code with the [`ful1e5/bibata`](https://github.com/ful1e5/bibata) web app
+> — only the three placeholder hex colors (`#00FF00` / `#0000FF` /
+> `#FF0000`) for color substitution are borrowed as a protocol. See
+> [`NOTICE`](./NOTICE) for full attribution.
 
 ```
 $ bibata build --variant modern --color amber --platform windows --windows-size large
@@ -35,7 +45,7 @@ broken:
 - Upstream's last commit is July 2024 and several open issues report the live
   site as broken.
 
-This fork drops everything above the dotted line:
+This project drops everything above the dotted line:
 
 ```
   ┌───────────────────────────────────────────────┐
@@ -46,7 +56,7 @@ This fork drops everything above the dotted line:
   └───────────────────────────────────────────────┘
 ```
 
-…and rebuilds the kept part in ~600 lines of Python.
+…and rebuilds the kept part in ~1100 lines of Python.
 
 ## Install
 
@@ -205,8 +215,9 @@ A build proceeds in three stages:
   or Developer Mode on Windows. Windows-only output (`-p windows`) is
   unaffected. Linux/macOS have no such restriction.
 - **No GUI yet.** A `pyside6`-based picker is on the roadmap (see below).
-- **No live preview.** Iterating on a custom palette means re-running the
-  CLI; rendering takes ~1.5 s for a full variant on a modern laptop.
+  In the meantime, `bibata preview -v <variant> -c <color>` emits an HTML
+  gallery (all cursors at 96px, animated ones playing) that opens in your
+  default browser.
 
 ## Roadmap
 
@@ -221,22 +232,23 @@ In rough priority order:
 - [ ] Animation re-timing flag (current default copies upstream's 30 ms
       frame delay).
 
-## Credits
+## What's borrowed vs what's new
 
-This project is a fork of upstream artwork and tooling. All cursor design
-credit goes to **Abdulkaiz Khatri** ([@ful1e5](https://github.com/ful1e5)):
+A precise breakdown — see [`NOTICE`](./NOTICE) for the legal version.
 
-- [`Bibata_Cursor`](https://github.com/ful1e5/Bibata_Cursor) — the SVG
-  sources (vendored into `src/bibata_studio/data/svg/groups/` from commit
-  `35ccfe2`, 2024-06-18, under MIT)
-- [`bibata`](https://github.com/ful1e5/bibata) — the original web-based
-  customizer (reference for the color-mask convention and TOML configs)
-- [`clickgen`](https://github.com/ful1e5/clickgen) — the cursor packer this
-  CLI delegates to
+| Asset | Source | How |
+|---|---|---|
+| 372 SVG cursor files | `ful1e5/Bibata_Cursor` @ `35ccfe2` | Verbatim copy in `src/bibata_studio/data/svg/groups/` |
+| 8 `ctgen` build TOMLs | `ful1e5/Bibata_Cursor` @ `35ccfe2` | Verbatim copy in `src/bibata_studio/data/configs/` |
+| Variant → group mapping | `ful1e5/Bibata_Cursor/svg/link.py` | Re-expressed as a Python dict in `presets.VARIANTS` |
+| Three mask hex colors | `ful1e5/bibata` web app + Bibata_Cursor README | Protocol borrowed (`#00FF00` / `#0000FF` / `#FF0000`) |
+| `.cur` / `.ani` packing | `clickgen` pip package | Imported as a runtime library |
+| All Python source (~1100 LoC) | — | Written for this project; **no code shared with `ful1e5/bibata`** |
 
-If you use this tool and find Bibata useful,
-[sponsor @ful1e5](https://github.com/sponsors/ful1e5) for the underlying
-artwork.
+**The `ful1e5/bibata` web application contributed zero lines of code** —
+only the color-mask convention. All artwork credit goes to
+**Abdulkaiz Khatri** ([@ful1e5](https://github.com/ful1e5)). If you use this
+tool and find Bibata useful, [sponsor @ful1e5](https://github.com/sponsors/ful1e5).
 
 ## License
 
