@@ -26,13 +26,23 @@ Custom palette via hex:
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
 
 from . import __version__
-from .build import _config_path, cleanup_intermediates, run_ctgen, zip_dir
+from .build import (
+    _config_path,
+    cleanup_intermediates,
+    extract_zip,
+    install_inf_windows,
+    refresh_windows_cursors,
+    run_ctgen,
+    run_uninstall_bat,
+    zip_dir,
+)
 from .presets import (
     PALETTES,
     Palette,
@@ -169,6 +179,100 @@ def cmd_build(args: argparse.Namespace) -> int:
     return 0 if final_outputs else 1
 
 
+def cmd_install(args: argparse.Namespace) -> int:
+    """Build (if needed) + extract + run install.inf with UAC elevation."""
+    if sys.platform != "win32":
+        raise SystemExit("`bibata install` is Windows-only for now.")
+
+    # Reuse build logic. Force --platform windows + --no-zip so we get the
+    # raw theme directory (no need to re-extract our own zip).
+    if not getattr(args, "windows_size", None):
+        args.windows_size = "large"
+    args.platform = "windows"
+    args.zip = False
+    args.keep_intermediates = False
+
+    # Capture the produced theme dir(s)
+    palette_label, palette = _resolve_palette(args)
+    out_dir = Path(args.output).resolve()
+    _info(
+        f"Step 1/3  Building {args.variant} / {palette_label} / "
+        f"{args.windows_size} into {out_dir}"
+    )
+    rc = cmd_build(args)
+    if rc != 0:
+        return rc
+
+    # Locate the freshly built theme directory under out_dir
+    suffix_map = {
+        "regular": "Regular", "large": "Large", "xl": "Extra-Large",
+    }
+    if args.windows_size == "all":
+        targets = ["Regular", "Large", "Extra-Large"]
+    else:
+        targets = [suffix_map[args.windows_size]]
+
+    installed: list[str] = []
+    for suffix in targets:
+        name = theme_name(args.variant, palette_label, suffix)
+        theme_dir = out_dir / f"{name}-Windows"
+        if not theme_dir.is_dir():
+            _info(f"!! built theme directory not found: {theme_dir}")
+            continue
+        inf = theme_dir / "install.inf"
+        _info(f"Step 2/3  Triggering install.inf for '{name}' (UAC prompt incoming)…")
+        try:
+            install_inf_windows(inf)
+        except subprocess.CalledProcessError as e:
+            _info(f"!! installer exited with code {e.returncode} (UAC declined?)")
+            return e.returncode
+        installed.append(name)
+
+    if not installed:
+        _info("Nothing was installed.")
+        return 1
+
+    _info("Step 3/3  Refreshing live cursor settings…")
+    refresh_windows_cursors()  # best-effort; works when called from user shell
+
+    _info(f"Installed: {len(installed)} theme(s)")
+    for n in installed:
+        print(f"  - {n} Cursors")
+    print(
+        "\nIf the on-screen cursor didn't change, open\n"
+        "    control main.cpl ,,1\n"
+        "select the scheme in the dropdown, click Apply."
+    )
+    return 0
+
+
+def cmd_uninstall(args: argparse.Namespace) -> int:
+    """Run a previously-installed theme's bundled uninstall.bat with admin."""
+    if sys.platform != "win32":
+        raise SystemExit("`bibata uninstall` is Windows-only.")
+    # Two ways to point at the theme: explicit path, or system install dir
+    if args.theme_dir:
+        theme_dir = Path(args.theme_dir).resolve()
+    else:
+        # Default: C:\Windows\Cursors\<scheme-name> doesn't ship uninstall.bat
+        # (only the extracted theme dir does). Tell the user to point at it.
+        raise SystemExit(
+            "Provide the extracted theme directory containing uninstall.bat:\n"
+            "    bibata uninstall <path/to/Bibata-..-Windows>"
+        )
+    if not theme_dir.is_dir():
+        raise SystemExit(f"not a directory: {theme_dir}")
+    _info(f"Running uninstall.bat in {theme_dir} (UAC prompt incoming)…")
+    try:
+        run_uninstall_bat(theme_dir)
+    except subprocess.CalledProcessError as e:
+        _info(f"!! uninstaller exited with code {e.returncode}")
+        return e.returncode
+    refresh_windows_cursors()
+    _info("Uninstalled. Falling back to Windows default cursor scheme.")
+    return 0
+
+
 def cmd_list(_args: argparse.Namespace) -> int:
     print("Variants:")
     for v in VARIANTS:
@@ -241,6 +345,46 @@ def build_parser() -> argparse.ArgumentParser:
 
     l = sub.add_parser("list", help="List available variants and palettes.")
     l.set_defaults(func=cmd_list)
+
+    # ---- install --------------------------------------------------------
+    i = sub.add_parser(
+        "install",
+        help="(Windows) Build + install + activate a Bibata scheme in one go.",
+    )
+    i.add_argument("-v", "--variant", required=True, choices=sorted(VARIANTS))
+    i.add_argument(
+        "-c", "--color",
+        required=True,
+        help=f"Palette preset ({', '.join(PALETTES)}) or 'custom'.",
+    )
+    i.add_argument("--base", help="Hex color for base (with --color custom).")
+    i.add_argument("--outline", help="Hex color for outline (with --color custom).")
+    i.add_argument("--watch-bg", dest="watch_bg",
+                   help="Hex color for watch background (with --color custom).")
+    i.add_argument(
+        "--windows-size",
+        choices=["regular", "large", "xl", "all"],
+        default="large",
+        help="Which Windows size profile to install (default: large).",
+    )
+    i.add_argument(
+        "-o", "--output",
+        default="./out",
+        help="Where to keep the built theme directory (default: ./out).",
+    )
+    i.set_defaults(func=cmd_install)
+
+    # ---- uninstall ------------------------------------------------------
+    u = sub.add_parser(
+        "uninstall",
+        help="(Windows) Run a theme's bundled uninstall.bat with admin rights.",
+    )
+    u.add_argument(
+        "theme_dir",
+        nargs="?",
+        help="Path to the extracted Bibata-...-Windows directory.",
+    )
+    u.set_defaults(func=cmd_uninstall)
 
     return p
 

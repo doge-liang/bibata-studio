@@ -12,6 +12,7 @@ rendered bitmaps directory and let clickgen do the packing.
 from __future__ import annotations
 
 import shutil
+import subprocess
 import sys
 import zipfile
 from contextlib import contextmanager
@@ -79,3 +80,93 @@ def cleanup_intermediates(*paths: Path) -> None:
     for p in paths:
         if p.exists():
             shutil.rmtree(p, ignore_errors=True)
+
+
+# ---------------------------------------------------------------------------
+# Windows-only: drive Setup API to install/uninstall a theme via its .inf
+# ---------------------------------------------------------------------------
+
+
+def _run_elevated_and_wait(exe: str, argline: str) -> int:
+    """Spawn an elevated process via PowerShell `Start-Process -Verb RunAs -Wait`.
+
+    Returns the child's exit code. Raises CalledProcessError if the PowerShell
+    wrapper itself failed (e.g. user clicked No on UAC).
+    """
+    ps_script = (
+        f"$p = Start-Process -FilePath '{exe}' "
+        f"-ArgumentList {argline} "
+        f"-Verb RunAs -Wait -PassThru; "
+        f"if ($p) {{ exit $p.ExitCode }} else {{ exit 1 }}"
+    )
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps_script],
+        check=True,
+    )
+    return completed.returncode
+
+
+def install_inf_windows(inf_path: Path) -> None:
+    """Trigger `[DefaultInstall]` of a Windows cursor INF, with UAC elevation.
+
+    Equivalent to right-click → Show more options → Install in Explorer.
+    Synchronous: returns only after the child rundll32 exits.
+    """
+    if sys.platform != "win32":
+        raise OSError("install_inf_windows is only available on Windows")
+    inf_path = inf_path.resolve()
+    if not inf_path.is_file():
+        raise FileNotFoundError(inf_path)
+    # 132 = 128 (no UI on success) + 4 (allow reboot prompt if needed)
+    args = ",".join(
+        f'"{a}"' for a in ("setupapi.dll,InstallHinfSection", "DefaultInstall", "132", str(inf_path))
+    )
+    _run_elevated_and_wait("rundll32.exe", args)
+
+
+def run_uninstall_bat(theme_dir: Path) -> None:
+    """Invoke a theme's bundled `uninstall.bat` with admin privileges."""
+    if sys.platform != "win32":
+        raise OSError("run_uninstall_bat is only available on Windows")
+    bat = (theme_dir / "uninstall.bat").resolve()
+    if not bat.is_file():
+        raise FileNotFoundError(bat)
+    _run_elevated_and_wait("cmd.exe", f"'/c','{bat}'")
+
+
+def refresh_windows_cursors() -> bool:
+    """Ask Windows to re-read cursor settings from the registry.
+
+    Sends SPI_SETCURSORS via SystemParametersInfoW. Only effective when called
+    from the user's own interactive session — i.e. when the user runs
+    `bibata install` themselves, not when the harness shells out from a
+    different desktop session.
+    """
+    if sys.platform != "win32":
+        return False
+    import ctypes
+
+    SPI_SETCURSORS = 0x0057
+    SPIF_UPDATEINIFILE = 0x01
+    SPIF_SENDCHANGE = 0x02
+    user32 = ctypes.windll.user32
+    user32.SystemParametersInfoW.argtypes = [
+        ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p, ctypes.c_uint
+    ]
+    user32.SystemParametersInfoW.restype = ctypes.c_bool
+    return bool(
+        user32.SystemParametersInfoW(
+            SPI_SETCURSORS, 0, None, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+        )
+    )
+
+
+def extract_zip(zip_path: Path, dst_dir: Path) -> Path:
+    """Extract a theme zip; return the path to the inner theme folder."""
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path) as zf:
+        zf.extractall(dst_dir)
+        roots = {Path(n).parts[0] for n in zf.namelist() if n}
+    if len(roots) != 1:
+        raise RuntimeError(f"unexpected zip layout (multiple roots): {roots}")
+    return dst_dir / next(iter(roots))

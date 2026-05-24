@@ -67,9 +67,33 @@ pip install -e .
 
 ## Usage
 
+The one-shot, "I just want it on my desktop" flow:
+
+```powershell
+# Build + install + activate the Amber Large theme in one command
+python -m bibata_studio install -v modern -c amber
+
+# Or, if `bibata.exe` is on your PATH:
+bibata install -v modern -c amber
+```
+
+You'll see one UAC prompt (granting `rundll32.exe` permission to write to
+`C:\Windows\Cursors\` and `HKCU\Control Panel\Cursors`). Click **Yes**. The
+new scheme is activated automatically — no manual trip to Control Panel.
+
+If you only want the zip (e.g. to ship to another machine):
+
+```powershell
+python -m bibata_studio build -v modern -c amber -p windows --windows-size large
+```
+
+### All commands
+
 ```text
-bibata build  -v <variant> -c <palette> [-p <platform>] [--windows-size <size>] [-o <dir>]
-bibata list                                # show all variants & palettes
+bibata build      -v <variant> -c <palette> [-p <platform>] [--windows-size <size>] [-o <dir>]
+bibata install    -v <variant> -c <palette> [--windows-size <size>]    # Windows only
+bibata uninstall  <path-to-extracted-theme-dir>                         # Windows only
+bibata list                                                             # show variants + palettes
 ```
 
 ### Variants
@@ -123,11 +147,20 @@ hand-variant — pick one or build all three:
 | `xl`             | 64 px     | 2× DPI and above                       |
 | `all`            | —         | build all three in one invocation      |
 
-### Install the produced theme on Windows
+### Install a built zip on Windows manually
 
-Unzip the `.zip`, right-click `install.inf` → *Install*, then go to
-*Settings → Bluetooth & devices → Mouse → Additional mouse settings →
-Pointers* and select the new scheme.
+If you'd rather not use `bibata install`, you can deploy a `.zip` by hand:
+
+1. Right-click the zip → *Extract All…*
+2. In the extracted folder, **Shift+right-click** `install.inf`
+   (or right-click → *Show more options* on Win11) → **Install**
+3. Approve the UAC prompt
+4. The new scheme becomes active immediately. To verify, open
+   *Control Panel → Mouse → Pointers* (`control main.cpl ,,1`); the
+   *Scheme* dropdown should show `Bibata-…-Windows Cursors` selected.
+
+The scheme is named `Bibata-<Variant>-<Color>-<Size> Cursors` (note the
+trailing word "Cursors" — clickgen appends it automatically).
 
 ## Architecture
 
