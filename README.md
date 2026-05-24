@@ -58,22 +58,101 @@ This project drops everything above the dotted line:
 
 …and rebuilds the kept part in ~1100 lines of Python.
 
-## Install
+## Installation
 
 Requires **Python ≥ 3.10**. Tested on Windows 11 + Python 3.12.
 
+Runtime deps pulled by `pip`:
+- [`resvg-py`](https://pypi.org/project/resvg-py/) — Rust-backed SVG rasterizer (Windows wheels prebuilt)
+- [`clickgen`](https://pypi.org/project/clickgen/) — XCursor/CUR/ANI packer by the original Bibata author
+
+### For humans
+
+Pick one of the two flows below depending on whether you want to hack on
+the code (`-e .` editable install) or just use it.
+
+**Use it (PowerShell, Windows):**
+
 ```powershell
-git clone <your-fork-url> bibata-studio
+# Clone + install + try the Amber theme — copy this whole block
+git clone https://github.com/doge-liang/bibata-studio.git
 cd bibata-studio
-pip install -e .
+python -m pip install --user .
+python -m bibata_studio install -v modern -c amber
+# ↑ a UAC dialog will pop up; click "Yes" — that's the only manual step.
 ```
 
-`pip` will pull two runtime dependencies:
+**Hack on it (editable install, cross-platform):**
 
-- [`resvg-py`](https://pypi.org/project/resvg-py/) — Rust-backed SVG
-  rasterizer (ships prebuilt Windows wheels)
-- [`clickgen`](https://pypi.org/project/clickgen/) — XCursor/CUR/ANI packer
-  by the original Bibata author
+```powershell
+git clone https://github.com/doge-liang/bibata-studio.git
+cd bibata-studio
+python -m pip install --user -e .[dev]
+python -m pytest                                          # 8/8 should pass
+python -m bibata_studio preview -v modern -c amber        # opens browser
+```
+
+If `python` isn't on your PATH, use `py -3.12` (Windows Python launcher) or
+your platform's equivalent. If `pip install --user` warns that
+`Scripts\` isn't on PATH, ignore — use `python -m bibata_studio ...` and
+everything works without touching PATH.
+
+### For agents
+
+Non-interactive install + dry-run build, suitable for CI, autonomous coding
+agents, or sandboxed setup scripts. All commands are idempotent and emit
+machine-parseable output.
+
+**One-liner (uv, recommended — no venv to manage):**
+
+```bash
+uvx --from git+https://github.com/doge-liang/bibata-studio.git@main \
+    bibata build -v modern -c amber -p windows --windows-size large -o ./out
+```
+
+**One-liner (pip + module invocation, no PATH dependency):**
+
+```bash
+python -m pip install --quiet --user 'bibata-studio @ git+https://github.com/doge-liang/bibata-studio.git@main' \
+  && python -m bibata_studio --version \
+  && python -m bibata_studio build -v modern -c amber -p windows --windows-size large -o ./out \
+  && ls ./out/*.zip
+```
+
+**Full setup + smoke verify (multi-step, recoverable):**
+
+```bash
+set -euo pipefail
+REPO=https://github.com/doge-liang/bibata-studio.git
+WORKDIR="${WORKDIR:-./bibata-studio}"
+
+# 1. Get sources (skip clone if already present)
+[ -d "$WORKDIR" ] || git clone --depth 1 "$REPO" "$WORKDIR"
+cd "$WORKDIR"
+
+# 2. Install (editable, user scope, quiet)
+python -m pip install --quiet --user -e .
+
+# 3. Smoke test the build pipeline end-to-end (no UAC, no install)
+python -m bibata_studio --version
+python -m bibata_studio list
+python -m bibata_studio build -v modern -c amber -p windows --windows-size large -o ./out
+
+# 4. Validate the produced zip's binary structure
+python tests/verify_windows_zip.py ./out/Bibata-Modern-Amber-Large-Windows
+```
+
+**Notes for agents:**
+- `bibata install` and `bibata uninstall` require **interactive UAC consent**
+  on Windows. Skip them in autonomous flows — use `bibata build` and ship
+  the resulting `.zip` to the user instead.
+- `bibata preview` calls `webbrowser.open()`; in headless environments pass
+  `--no-open` to suppress and just print the file URI.
+- Build is deterministic: same `(variant, palette)` → byte-identical zips
+  (except for the install.inf comment, which is stable for a fixed
+  invocation). Safe to cache.
+- Default Python wheel cache is reused across runs — repeated installs
+  take seconds.
 
 ## Usage
 
