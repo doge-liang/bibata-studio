@@ -1,5 +1,7 @@
 # bibata-studio
 
+**English** · [简体中文](./README.zh-CN.md)
+
 A local-first, pure-Python CLI that builds [Bibata](https://github.com/ful1e5/Bibata_Cursor)
 cursor themes. No web stack, no database, no auth, no Figma token — just
 SVGs in, cursor `.zip` out.
